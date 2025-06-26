@@ -4,13 +4,15 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { 
     fetchRepo, 
     fetchMyRepos, 
-    createRepo,
+    createRepo, 
     createPullRequest,
     createBranch,
     deleteBranch,
-    listBranches 
+    listBranches, 
+    fetchAllRepos
 } from "./github.tool.js";
 import { z } from "zod";
+import cors from "cors";
 
 const server = new McpServer({
     name: "example-server",
@@ -146,6 +148,13 @@ How can I assist you with your GitHub tasks today?`
 // ... set up server resources, tools, and prompts ...
 
 const app = express();
+app.use(cors({
+    origin: '*', // Be more restrictive in production
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 /*
 server.tool(
@@ -454,13 +463,15 @@ app.get("/sse", async (req, res) => {
 
 app.post("/messages", async (req, res) => {
     const sessionId = req.query.sessionId;
+    console.log("Received message for session:", sessionId);
     const transport = transports[ sessionId ];
     if (transport) {
-        await transport.handlePostMessage(req, res);
+        await transport.handlePostMessage(req, res, req.body);
     } else {
         res.status(400).send('No transport found for sessionId');
     }
 });
+
 
 app.listen(3001, () => {
     console.log("Server is running on http://localhost:3001");
