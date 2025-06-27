@@ -33,9 +33,12 @@ export async function fetchRepo(owner, repo) {
       content: [
         {
           type: "text",
-          text: `Error fetching repository: ${
-            error.message || "Unknown error"
-          }`,
+          text: `### **Error fetching repository**
+
+Please verify:-
+- 1.Repository name is correct
+- 2.You have proper access permissions
+- 3.The repository exists and is accessible`,
         },
       ],
     };
@@ -85,7 +88,12 @@ export async function fetchAllRepos(username) {
       content: [
         {
           type: "text",
-          text: `Error fetching repositories: ${error.message || "Unknown error"}`
+          text: `### **Error fetching repository**
+
+Please verify:-
+- 1.Repository name is correct
+- 2.You have proper access permissions
+- 3.The repository exists and is accessible`,
         }
       ],
     };
@@ -142,7 +150,12 @@ export async function fetchMyRepos() {
       content: [
         {
           type: "text",
-          text: `Error fetching repositories: ${error.message || "Unknown error"}`
+          text: `### **Error fetching repository**
+
+Please verify:-
+- 1.Repository name is correct
+- 2.You have proper access permissions
+- 3.The repository exists and is accessible`,
         }
       ],
     };
@@ -728,6 +741,335 @@ For detailed search syntax guidelines, please refer to:\n
 **Time:** ${new Date().toLocaleString()}\n
 
 Please contact support if this issue persists.`
+        }
+      ]
+    };
+  }
+}
+
+export async function get_file_contents(owner = "Sumit-jangir", repo, path, ref = 'main') {
+  try {
+    console.log(`Fetching file contents: ${path} from ${owner}/${repo}@${ref}`);
+
+    // First verify the repository exists
+    try {
+      await octokit.rest.repos.get({
+        owner,
+        repo,
+      });
+    } catch (repoError) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**Repository Access Error**\n
+
+**Repository:** ${owner}/${repo}\n
+**Status:** Not Found or Inaccessible\n
+
+**Please Verify:**\n
+1. Repository name is correct
+2. Repository exists
+3. You have access permissions
+4. Repository is not private\n`
+          }
+        ]
+      };
+    }
+
+    const response = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path,
+      ref
+    });
+
+    // Handle directory case
+    if (Array.isArray(response.data)) {
+      const fileList = response.data.map((item, i) => {
+        return `${i + 1}. **${item.type}:** [${item.name}](${item.html_url})`;
+      }).join('\n');
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**Directory Contents**\n
+
+**Repository:** ${owner}/${repo}\n
+**Path:** ${path}\n
+**Branch/Ref:** ${ref}\n
+
+**Files and Directories:**\n
+${fileList}\n`
+          }
+        ]
+      };
+    }
+
+    // Handle file case
+    const content = Buffer.from(response.data.content, 'base64').toString('utf-8');
+    const fileSize = Buffer.from(response.data.content, 'base64').length;
+    const fileSizeFormatted = fileSize > 1024 ? 
+      `${(fileSize / 1024).toFixed(2)} KB` : 
+      `${fileSize} bytes`;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `**File Contents**\n
+
+**Repository:** ${owner}/${repo}\n
+**File:** ${path}\n
+**Branch/Ref:** ${ref}\n
+**Size:** ${fileSizeFormatted}\n
+**SHA:** ${response.data.sha}\n
+
+**Content:**\n
+\`\`\`${path.split('.').pop() || 'text'}
+${content}
+\`\`\`\n
+
+🔗 [View on GitHub](${response.data.html_url})`
+        }
+      ]
+    };
+  } catch (error) {
+    console.error("Error fetching file contents:", error);
+    if (error.status === 404) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**File Not Found**\n
+
+**Repository:** ${owner}/${repo}\n
+**File:** ${path}\n
+**Branch/Ref:** ${ref}\n
+
+**Error:** The specified file could not be found.\n
+Please verify the file path and branch name are correct.`
+          }
+        ]
+      };
+    }
+    return {
+      content: [
+        {
+          type: "text",
+          text: `**Error Report**\n
+
+**Status:** Failed to fetch file contents\n
+**Repository:** ${owner}/${repo}\n
+**File:** ${path}\n
+**Error Message:** ${error.message || "Unknown error"}\n
+
+Please verify your access permissions and try again.`
+        }
+      ]
+    };
+  }
+}
+
+export async function list_commits(owner = "Sumit-jangir", repo, path = '', per_page = 10) {
+  try {
+    console.log(`Fetching commits for ${owner}/${repo}${path ? ` path: ${path}` : ''}`);
+
+    // First verify the repository exists
+    try {
+      await octokit.rest.repos.get({
+        owner,
+        repo,
+      });
+    } catch (repoError) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**Repository Access Error**\n
+
+**Repository:** ${owner}/${repo}\n
+**Status:** Not Found or Inaccessible\n
+
+**Please Verify:**\n
+1. Repository name is correct
+2. Repository exists
+3. You have access permissions
+4. Repository is not private\n`
+          }
+        ]
+      };
+    }
+
+    const response = await octokit.rest.repos.listCommits({
+      owner,
+      repo,
+      path,
+      per_page
+    });
+
+    if (response.data.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**No Commits Found**\n
+
+**Repository:** ${owner}/${repo}\n
+**Path:** ${path || 'root'}\n
+
+No commits were found for the specified path.`
+          }
+        ]
+      };
+    }
+
+    const commitList = response.data.map((commit, i) => {
+      const date = new Date(commit.commit.author.date).toLocaleString();
+      return `**${i + 1}.** [${commit.sha.substring(0, 7)}](${commit.html_url})\n
+**Author:** ${commit.commit.author.name}\n
+**Date:** ${date}\n
+**Message:** ${commit.commit.message}\n
+---`;
+    }).join('\n\n');
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `**Commit History**\n
+
+**Repository:** ${owner}/${repo}\n
+**Path:** ${path || 'root'}\n
+**Total Commits Shown:** ${response.data.length}\n
+
+**Recent Commits:**\n
+${commitList}\n
+
+🔗 [View Full History on GitHub](https://github.com/${owner}/${repo}/commits${path ? '/' + path : ''})`
+        }
+      ]
+    };
+  } catch (error) {
+    console.error("Error listing commits:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `**Error Report**\n
+
+**Status:** Failed to fetch commits\n
+**Repository:** ${owner}/${repo}\n
+**Path:** ${path || 'root'}\n
+**Error Message:** ${error.message || "Unknown error"}\n
+
+Please verify your access permissions and try again.`
+        }
+      ]
+    };
+  }
+}
+
+export async function list_issues(owner = "Sumit-jangir", repo, state = 'open', per_page = 10) {
+  try {
+    console.log(`Fetching ${state} issues for ${owner}/${repo}`);
+
+    // First verify the repository exists
+    try {
+      await octokit.rest.repos.get({
+        owner,
+        repo,
+      });
+    } catch (repoError) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**Repository Access Error**\n
+
+**Repository:** ${owner}/${repo}\n
+**Status:** Not Found or Inaccessible\n
+
+**Please Verify:**\n
+1. Repository name is correct
+2. Repository exists
+3. You have access permissions
+4. Repository is not private\n`
+          }
+        ]
+      };
+    }
+
+    const response = await octokit.rest.issues.listForRepo({
+      owner,
+      repo,
+      state,
+      per_page
+    });
+
+    if (response.data.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**No Issues Found**\n
+
+**Repository:** ${owner}/${repo}\n
+**State:** ${state}\n
+
+No ${state} issues were found in this repository.`
+          }
+        ]
+      };
+    }
+
+    const issueList = response.data.map((issue, i) => {
+      const labels = issue.labels.map(label => `\`${label.name}\``).join(', ');
+      const assignees = issue.assignees.map(assignee => `@${assignee.login}`).join(', ');
+      const created = new Date(issue.created_at).toLocaleString();
+      const updated = new Date(issue.updated_at).toLocaleString();
+
+      return `**${i + 1}.** [#${issue.number}: ${issue.title}](${issue.html_url})\n
+**State:** ${issue.state}${issue.state === 'closed' ? ` (closed on ${new Date(issue.closed_at).toLocaleString()})` : ''}\n
+**Author:** @${issue.user.login}\n
+**Created:** ${created}\n
+**Updated:** ${updated}\n
+${labels ? `**Labels:** ${labels}\n` : ''}${assignees ? `**Assignees:** ${assignees}\n` : ''}
+**Comments:** ${issue.comments}\n
+---`;
+    }).join('\n\n');
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `**Issue List**\n
+
+**Repository:** ${owner}/${repo}\n
+**State:** ${state}\n
+**Total Issues Shown:** ${response.data.length}\n
+
+**Issues:**\n
+${issueList}\n
+
+🔗 [View All Issues on GitHub](https://github.com/${owner}/${repo}/issues)`
+        }
+      ]
+    };
+  } catch (error) {
+    console.error("Error listing issues:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `**Error Report**\n
+
+**Status:** Failed to fetch issues\n
+**Repository:** ${owner}/${repo}\n
+**Error Message:** ${error.message || "Unknown error"}\n
+
+Please verify your access permissions and try again.`
         }
       ]
     };
