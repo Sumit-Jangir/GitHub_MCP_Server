@@ -4,12 +4,14 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { 
     fetchRepo, 
     fetchMyRepos, 
-    createRepo, 
+    createRepo,
     createPullRequest,
     createBranch,
     deleteBranch,
     listBranches, 
-    fetchAllRepos
+    fetchAllRepos,
+    create_or_update_file,
+    search_repositories
 } from "./github.tool.js";
 import { z } from "zod";
 import cors from "cors";
@@ -102,48 +104,54 @@ server.resource("github_templates", {
 // });
 
 // Set up system prompt
-server.prompt({
-    system: `👋 Welcome to the GitHub Assistant!
+// server.prompt({
+//     system: `👋 Welcome to the GitHub Assistant!
 
-I can help you manage your GitHub repositories with these simple commands:
+// I can help you manage your GitHub repositories with these simple commands:
 
-📁 Repository Management:
-- "Show repository details" - View info about any repository
-- "List my repositories" - See all your repositories
-- "Create new repository" - Make a new repository
-  Example: "Create a repository named 'my-project' with description 'My awesome project'"
+// 📁 Repository Management:
+// - "Show repository details" - View info about any repository
+// - "List my repositories" - See all your repositories
+// - "Create new repository" - Make a new repository
+//   Example: "Create a repository named 'my-project' with description 'My awesome project'"
 
-🌿 Branch Operations:
-- "Create branch" - Make a new branch
-  Example: "Create branch 'feature/login' in 'my-project'"
-- "List branches" - See all branches in a repository
-  Example: "Show all branches in 'my-project'"
-- "Delete branch" - Remove a branch
-  Example: "Delete branch 'old-feature' from 'my-project'"
+// 🌿 Branch Operations:
+// - "Create branch" - Make a new branch
+//   Example: "Create branch 'feature/login' in 'my-project'"
+// - "List branches" - See all branches in a repository
+//   Example: "Show all branches in 'my-project'"
+// - "Delete branch" - Remove a branch
+//   Example: "Delete branch 'old-feature' from 'my-project'"
 
-🔄 Pull Requests:
-- "Create pull request" - Make a new PR
-  Example: "Create PR from 'feature' to 'main' in 'my-project' titled 'Add new feature'"
+// 🔄 Pull Requests:
+// - "Create pull request" - Make a new PR
+//   Example: "Create PR from 'feature' to 'main' in 'my-project' titled 'Add new feature'"
 
-✨ Features:
-- Default owner is 'Sumit-jangir' (no need to specify)
-- Clear success/error messages with emojis
-- Direct links to GitHub for all operations
-- Automatic error handling and suggestions
+// 📝 File Operations:
+// - "Create file" - Create a new file in a repository
+//   Example: "Create a file called 'README.md' in 'my-project' with content '# My Project'"
+// - "Update file" - Update an existing file
+//   Example: "Update config.json in 'my-project' with content '{ \"version\": \"1.0.0\" }'"
 
-📚 Resources Available:
-- PR Templates (feature, bugfix, documentation)
-- Branch naming conventions
-- Best practices guides
+// ✨ Features:
+// - Default owner is 'Sumit-jangir' (no need to specify)
+// - Clear success/error messages with emojis
+// - Direct links to GitHub for all operations
+// - Automatic error handling and suggestions
 
-🎯 Sample Commands:
-- Ask for "sample feature branch" to see branch creation example
-- Ask for "sample pull request" to see PR creation example
+// 📚 Resources Available:
+// - PR Templates (feature, bugfix, documentation)
+// - Branch naming conventions
+// - Best practices guides
 
-Just tell me what you'd like to do in simple words, and I'll help you out! 😊
+// 🎯 Sample Commands:
+// - Ask for "sample feature branch" to see branch creation example
+// - Ask for "sample pull request" to see PR creation example
 
-How can I assist you with your GitHub tasks today?`
-});
+// Just tell me what you'd like to do in simple words, and I'll help you out! 😊
+
+// How can I assist you with your GitHub tasks today?`
+// });
 
 // ... set up server resources, tools, and prompts ...
 
@@ -441,6 +449,71 @@ server.tool(
                     {
                         type: "text",
                         text: `Error: ${error.message || "Unknown error occurred while listing branches"}`
+                    }
+                ]
+            };
+        }
+    }
+)
+
+server.tool(
+    "create_or_update_file",
+    "Create a new file or update an existing file in a GitHub repository", 
+    {
+        owner: z.string().optional(),
+        repo: z.string(),
+        path: z.string(),
+        content: z.string(),
+        message: z.string(),
+        branch: z.string().optional(),
+        encoding: z.string().optional()
+    }, 
+    async (arg) => {
+        try {
+            const { 
+                owner = "Sumit-jangir", 
+                repo, 
+                path, 
+                content, 
+                message, 
+                branch = 'main',
+                encoding = 'utf-8'
+            } = arg;
+            return await create_or_update_file(owner, repo, path, content, message, branch, encoding);
+        } catch (error) {
+            console.error("Error in create_or_update_file tool:", error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `❌ Error creating/updating file: ${error.message || "Unknown error occurred while creating/updating file"}`
+                    }
+                ]
+            };
+        }
+    }
+)
+
+server.tool(
+    "search_repositories",
+    "Search for GitHub repositories with various criteria", 
+    {
+        query: z.string(),
+        sort: z.enum(['stars', 'forks', 'help-wanted-issues', 'updated']).optional(),
+        order: z.enum(['desc', 'asc']).optional(),
+        per_page: z.number().min(1).max(100).optional()
+    }, 
+    async (arg) => {
+        try {
+            const { query, sort = 'stars', order = 'desc', per_page = 10 } = arg;
+            return await search_repositories(query, sort, order, per_page);
+        } catch (error) {
+            console.error("Error in search_repositories tool:", error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `❌ Error searching repositories: ${error.message || "Unknown error occurred while searching repositories"}`
                     }
                 ]
             };

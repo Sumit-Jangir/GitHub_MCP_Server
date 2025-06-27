@@ -519,3 +519,217 @@ export async function listBranches(owner = "Sumit-jangir", repo) {
     };
   }
 }
+
+export async function create_or_update_file(owner = "Sumit-jangir", repo, path, content, message, branch = 'main', encoding = 'utf-8') {
+  try {
+    console.log(`Attempting to create/update file '${path}' in ${owner}/${repo} on branch ${branch}`);
+
+    // First verify the repository exists
+    try {
+      await octokit.rest.repos.get({
+        owner,
+        repo,
+      });
+    } catch (repoError) {
+      console.error("Error verifying repository:", repoError);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Unable to create/update file: Repository '${owner}/${repo}' not found or not accessible.\nPlease verify:\n1. The repository name is correct (case-sensitive)\n2. The repository exists\n3. You have permission to access it\n4. The repository is not private`
+          }
+        ]
+      };
+    }
+
+    // Try to get the file first to see if it exists
+    let sha;
+    try {
+      const { data: fileData } = await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path,
+        ref: branch
+      });
+      sha = fileData.sha;
+      console.log(`File exists. Will update existing file with SHA: ${sha}`);
+    } catch (error) {
+      // File doesn't exist, which is fine - we'll create it
+      console.log(`File doesn't exist. Will create new file.`);
+    }
+
+    // Create or update the file
+    const response = await octokit.rest.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path,
+      message,
+      content: Buffer.from(content, encoding).toString('base64'),
+      branch,
+      ...(sha && { sha }) // Only include sha if file exists
+    });
+
+    const action = sha ? 'updated' : 'created';
+    return {
+      content: [
+        {
+          type: "text",
+          text: `✅ **File ${action} successfully!**\n
+
+**Repository:** ${owner}/${repo}\n
+**File:** ${path}\n
+**Branch:** ${branch}\n
+**Commit:** [${response.data.commit.sha.substring(0, 7)}](${response.data.commit.html_url})\n
+**Message:** ${message}\n
+
+**You can view the file :-** 🔗[click here](${response.data.content.html_url})`
+        }
+      ]
+    };
+  } catch (error) {
+    console.error("Error creating/updating file:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Error creating/updating file: ${error.message || "Unknown error"}`
+        }
+      ]
+    };
+  }
+}
+
+export async function search_repositories(query, sort = 'stars', order = 'desc', per_page = 10) {
+  try {
+    console.log(`Searching repositories with query: "${query}"`);
+
+    const response = await octokit.rest.search.repos({
+      q: query,
+      sort: sort,
+      order: order,
+      per_page: per_page
+    });
+
+    if (response.data.total_count === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `📊 **Search Results Summary**\n
+
+**Query:** "${query}"\n
+**Total Results:** 0\n
+**Status:** No matches found\n
+
+**Suggestions:**\n
+1. Try using different keywords
+2. Check for spelling errors
+3. Use more general search terms
+4. Remove specific filters`
+          }
+        ]
+      };
+    }
+
+    const repoList = response.data.items.map((repo, i) => {
+      const topics = repo.topics?.length > 0 ? `**Topics:** ${repo.topics.join(', ')}\n\n` : '';
+      const language = repo.language ? `**Primary Language:** ${repo.language}\n\n` : '';
+      const license = repo.license?.name ? `**License:** ${repo.license.name}\n\n` : '';
+      
+      return `**Repository ${i + 1}**\n
+**Name:** [${repo.full_name}](${repo.html_url})\n
+**Description:** ${repo.description || 'No description provided'}\n
+${language}${license}${topics}**Statistics:**\n
+• Stars: ${repo.stargazers_count.toLocaleString()}
+• Forks: ${repo.forks_count.toLocaleString()}
+• Watchers: ${repo.watchers_count.toLocaleString()}
+• Open Issues: ${repo.open_issues_count.toLocaleString()}\n
+
+**Last Updated:** ${new Date(repo.updated_at).toLocaleString()}\n
+**Created At:** ${new Date(repo.created_at).toLocaleString()}\n
+
+---\n`;
+    }).join('\n');
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `**Search Results Summary**\n
+
+**Query:** "${query}"\n
+**Total Results:** ${response.data.total_count.toLocaleString()}\n
+**Sort Criteria:** ${sort}\n
+**Order:** ${order}\n
+**Results Per Page:** ${per_page}\n
+
+**Top ${Math.min(per_page, response.data.items.length)} Repositories:**\n
+${repoList}\n
+**Note:** Results are sorted by ${sort} in ${order}ending order. Use different sort criteria or page size for different results.`
+        }
+      ]
+    };
+  } catch (error) {
+    console.error("Error searching repositories:", error);
+    if (error.status === 422) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ **Search Query Error Report**\n
+
+**Query:** "${query}"\n
+**Status:** Invalid Query\n
+**Error Code:** 422\n
+
+**Troubleshooting Steps:**\n
+1. Simplify search terms
+2. Remove special characters
+3. Verify syntax correctness\n
+
+**Reference:**\n
+For detailed search syntax guidelines, please refer to:\n
+🔗 [GitHub Search Documentation](https://docs.github.com/en/search-github/github-code-search/understanding-github-code-search-syntax)`
+          }
+        ]
+      };
+    }
+    if (error.status === 403) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `⚠️ **Rate Limit Report**\n
+
+**Status:** Rate Limit Exceeded\n
+**Error Code:** 403\n
+
+**Resolution Steps:**\n
+1. Wait for rate limit reset (typically 60 minutes)
+2. Use more specific search terms
+3. Reduce request frequency\n
+
+**Best Practices:**\n
+• Cache frequently accessed results
+• Implement request throttling
+• Use conditional requests when possible`
+          }
+        ]
+      };
+    }
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ **Error Report**\n
+
+**Status:** Search Operation Failed\n
+**Error Message:** ${error.message || "Unknown error"}\n
+**Time:** ${new Date().toLocaleString()}\n
+
+Please contact support if this issue persists.`
+        }
+      ]
+    };
+  }
+}
