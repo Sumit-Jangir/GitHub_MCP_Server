@@ -11,7 +11,10 @@ import {
     listBranches, 
     fetchAllRepos,
     create_or_update_file,
-    search_repositories
+    search_repositories,
+    get_file_contents,
+    list_commits,
+    list_issues
 } from "./github.tool.js";
 import { z } from "zod";
 import cors from "cors";
@@ -514,6 +517,102 @@ server.tool(
                     {
                         type: "text",
                         text: `❌ Error searching repositories: ${error.message || "Unknown error occurred while searching repositories"}`
+                    }
+                ]
+            };
+        }
+    }
+)
+
+server.tool(
+    "get_file_contents",
+    "Get the contents of a file or directory from a GitHub repository", 
+    {
+        owner: z.string().optional(),
+        repo: z.string(),
+        path: z.string(),
+        ref: z.string().optional()
+    }, 
+    async (arg) => {
+        try {
+            const { owner = "Sumit-jangir", repo, path, ref = 'main' } = arg;
+            return await get_file_contents(owner, repo, path, ref);
+        } catch (error) {
+            console.error("Error in get_file_contents tool:", error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `**Error Report**\n
+
+**Status:** Failed to fetch file contents\n
+**Error Message:** ${error.message || "Unknown error"}\n
+
+Please verify your access permissions and try again.`
+                    }
+                ]
+            };
+        }
+    }
+)
+
+server.tool(
+    "list_commits",
+    "List commits for a repository or specific file/directory", 
+    {
+        owner: z.string().optional(),
+        repo: z.string(),
+        path: z.string().optional(),
+        per_page: z.number().min(1).max(100).optional()
+    }, 
+    async (arg) => {
+        try {
+            const { owner = "Sumit-jangir", repo, path = '', per_page = 10 } = arg;
+            return await list_commits(owner, repo, path, per_page);
+        } catch (error) {
+            console.error("Error in list_commits tool:", error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `**Error Report**\n
+
+**Status:** Failed to fetch commits\n
+**Error Message:** ${error.message || "Unknown error"}\n
+
+Please verify your access permissions and try again.`
+                    }
+                ]
+            };
+        }
+    }
+)
+
+server.tool(
+    "list_issues",
+    "List issues in a GitHub repository", 
+    {
+        owner: z.string().optional(),
+        repo: z.string(),
+        state: z.enum(['open', 'closed', 'all']).optional(),
+        per_page: z.number().min(1).max(100).optional()
+    }, 
+    async (arg) => {
+        try {
+            const { owner = "Sumit-jangir", repo, state = 'open', per_page = 10 } = arg;
+            return await list_issues(owner, repo, state, per_page);
+        } catch (error) {
+            console.error("Error in list_issues tool:", error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `**Error Report**\n
+
+**Status:** Failed to fetch issues\n
+**Error Message:** ${error.message || "Unknown error"}\n
+
+Please verify your access permissions and try again.`
                     }
                 ]
             };
