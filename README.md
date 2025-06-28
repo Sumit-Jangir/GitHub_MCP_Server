@@ -1,6 +1,32 @@
-# MCP Server-Client Project
+# Github MCP Server-Client Project
+
 
 A Model Context Protocol (MCP) implementation with a React client and Express.js server, featuring real-time communication through Server-Sent Events (SSE).
+
+## Screenshots & Demo
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="Client/src/assets/Screenshot.png" alt="Main Interface" width="100%"/>
+      <p align="center"></p>
+    </td>
+    <td width="50%">
+      <img src="Client/src/assets/Screenshot2.png" alt="AI Assistant" width="100%"/>
+      <p align="center"></p>
+    </td>
+  </tr>
+  <!-- <tr>
+    <td width="50%">
+      <img src="Client/src/assets/react.svg" alt="React Integration" width="100%"/>
+      <p align="center"><em>React Frontend</em></p>
+    </td>
+    <td width="50%">
+      <img src="Client/public/vite.svg" alt="Vite Build Tool" width="100%"/>
+      <p align="center"><em>Powered by Vite</em></p>
+    </td>
+  </tr> -->
+</table>
 
 ## Environment Setup
 

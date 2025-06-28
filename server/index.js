@@ -69,95 +69,6 @@ server.resource("github_templates", {
     }
 });
 
-// Add sampling functions
-// server.sample("createFeatureBranch", async () => {
-//     return {
-//         content: [
-//             {
-//                 type: "text",
-//                 text: `Here's how to create a feature branch:
-
-// "Create a branch named 'feature/user-auth' in 'my-project'"
-
-// This will:
-// 1. Create a new branch with proper naming convention
-// 2. Base it on the main branch
-// 3. Follow best practices for feature development`
-//             }
-//         ]
-//     };
-// });
-
-// server.sample("createPullRequest", async () => {
-//     return {
-//         content: [
-//             {
-//                 type: "text",
-//                 text: `Here's how to create a pull request:
-
-// "Create a pull request from 'feature/user-auth' to 'main' in 'my-project' titled 'Add user authentication'"
-
-// This will:
-// 1. Create a PR with proper title
-// 2. Use the feature PR template
-// 3. Link related issues if mentioned`
-//             }
-//         ]
-//     };
-// });
-
-// Set up system prompt
-// server.prompt({
-//     system: `👋 Welcome to the GitHub Assistant!
-
-// I can help you manage your GitHub repositories with these simple commands:
-
-// 📁 Repository Management:
-// - "Show repository details" - View info about any repository
-// - "List my repositories" - See all your repositories
-// - "Create new repository" - Make a new repository
-//   Example: "Create a repository named 'my-project' with description 'My awesome project'"
-
-// 🌿 Branch Operations:
-// - "Create branch" - Make a new branch
-//   Example: "Create branch 'feature/login' in 'my-project'"
-// - "List branches" - See all branches in a repository
-//   Example: "Show all branches in 'my-project'"
-// - "Delete branch" - Remove a branch
-//   Example: "Delete branch 'old-feature' from 'my-project'"
-
-// 🔄 Pull Requests:
-// - "Create pull request" - Make a new PR
-//   Example: "Create PR from 'feature' to 'main' in 'my-project' titled 'Add new feature'"
-
-// 📝 File Operations:
-// - "Create file" - Create a new file in a repository
-//   Example: "Create a file called 'README.md' in 'my-project' with content '# My Project'"
-// - "Update file" - Update an existing file
-//   Example: "Update config.json in 'my-project' with content '{ \"version\": \"1.0.0\" }'"
-
-// ✨ Features:
-// - Default owner is 'Sumit-jangir' (no need to specify)
-// - Clear success/error messages with emojis
-// - Direct links to GitHub for all operations
-// - Automatic error handling and suggestions
-
-// 📚 Resources Available:
-// - PR Templates (feature, bugfix, documentation)
-// - Branch naming conventions
-// - Best practices guides
-
-// 🎯 Sample Commands:
-// - Ask for "sample feature branch" to see branch creation example
-// - Ask for "sample pull request" to see PR creation example
-
-// Just tell me what you'd like to do in simple words, and I'll help you out! 😊
-
-// How can I assist you with your GitHub tasks today?`
-// });
-
-// ... set up server resources, tools, and prompts ...
-
 const app = express();
 app.use(cors({
     origin: '*', // Be more restrictive in production
@@ -166,28 +77,6 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-/*
-server.tool(
-    "addTwoNumbers",
-    "Add two numbers",
-    {
-        a: z.number(),
-        b: z.number()
-    },
-    async (arg) => {
-        const { a, b } = arg;
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `The sum of ${a} and ${b} is ${a + b}`
-                }
-            ]
-        }
-    }
-)
-*/
 
 // GitHub Tools
 server.tool(
